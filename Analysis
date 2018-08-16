@@ -1,0 +1,69 @@
+library(tidyverse)
+library(stringr)
+library(igraph)
+
+data6<-read.table("R/test.4.1.csv",header=TRUE, sep="",colClasses=c("character","character","numeric"))
+Balances<-read.csv(file.choose(),header=TRUE)
+TetherAddresses<- read.table("R/TetherAddress.csv", header=TRUE,sep=",",colClasses=c("character","character"))
+
+#join data6 with TetherAddresses, 2 new columns ID.x in ID.y
+g2<-data6 %>% left_join(TetherAddresses, by=c("SendingAddress"="TetherAddress"))%>%
+              left_join(TetherAddresses, by=c("ReceivingAddress"="TetherAddress"))
+
+#2 new columns with <NA>'s replaced with last 3 letters from coresponding address
+g.id<-g2 %>% mutate(SendingAddressID= ifelse(is.na(ID.x), str_sub(SendingAddress,-3),ID.x))%>%
+             mutate(ReceivingAddressID=ifelse(is.na(ID.y),str_sub(ReceivingAddress,-3),ID.y))%>%
+             select(SendingAddressID,ReceivingAddressID,TotalSent)
+
+#1 new column RelativeSizOfEdge
+g.full<-g.id %>% mutate(RelativeSizeOfEdge=ifelse(TotalSent<1000000,1,ifelse(TotalSent<3000000,4,ifelse(TotalSent<6000000,7,10))))
+p<-graph.data.frame(g.full, directed = TRUE)
+
+#create function to include only 1 edge between 2 nodes instead of 2 reciprocal edges, label should be subtraction of the
+#TotalSent values, direction should be towards node where larger amount of Tether was sent
+nettedGraph <- function(p, col="TotalSent") {
+  if(!(col %in% edge_attr_names(p))) {
+    stop(col, " not and edge attribute")
+  }
+# Get a matrix of mutual edges (by vertex ids)
+me<-ends(p, E(p)[which_mutual(p)], names=FALSE)
+# Only keep one of the mutual edges
+me<-me[me[,1] < me[,2],] 
+if(length(me)<3) {me=t(me)}
+toDel<-vector(mode="integer",length=nrow(me))
+for (i in 1:nrow(me)) {
+  
+  # Get edge ids going each way
+  e1 <- get.edge.ids(p, c(me[i,1],me[i,2]))       
+  e2 <- get.edge.ids(p, c(me[i,2],me[i,1]))
+  
+  weightDiff<- edge_attr(p,col, e1) - edge_attr(p,col, e2)
+  
+  if(weightDiff > 0) {
+    # Update the edge we're keeping
+    edge_attr(p,col, e1) <- weightDiff
+    # Delete the one we're not
+    toDel[i] <- e2
+  } else {
+    # Update the edge we're keeping
+    edge_attr(p,col, e2) <- -weightDiff
+    # Delete the one we're not
+    toDel[i] <- e1
+  }
+}
+# Now delete all the unneeded edges
+p <- p - E(p)[toDel]
+
+return(p)
+}
+gNet <- nettedGraph(p)
+#plot interactive network graph
+tkplot(gNet,
+       edge.label=E(gNet)$TotalSent,
+       edge.arrow.size = 1,
+       edge.width=E(gNet)$RelativeSizeOfEdge,
+       vertex.label=V(gNet)$name,          
+       vertex.label.cex = 1.2,          
+       vertex.color="cadetblue1",       
+       vertex.label.color="black",
+       vertex.label.font=4)
