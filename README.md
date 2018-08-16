@@ -7,4 +7,4 @@ The goal of this project is to learn and demonstrate skills of data manipulation
 
 #Plan
 
-My plan is to run Omni Core on my server (layer on Bitcoin network) so I can get reliable, untampered data and import data into SQL Server 2016. I will manipulate data in SQL Server to get useful data set which will be used to later visualize network of tether transactions in a meaningful way. Further analysis will be done in Microsoft Excel using data models.
+My plan is to run Omni Core on my server (layer on Bitcoin network) so I can get reliable, untampered data and import data into SQL Server 2016. I will manipulate data in SQL Server to get useful dataset which will be used to later visualize network of tether transactions in a meaningful way. Further analysis will be done in Microsoft Excel using data models.
